@@ -4,14 +4,20 @@ import random
 from itertools import product, starmap, islice
 import uuid
 import itertools
-
+from dijkstar import Graph, find_path, NoPathError
 # Configurable settings
 min_pass_count = 25  # Minimum and maximum number of passes to make.
 max_pass_count = 35  # The more passes, the smoother it will be.
 wall_chance = .525  # The chance of a wall appearing in the initial generation.
-constant_symmetry = True  # Makes it symmetric on each pass.
+constant_symmetry = False  # Makes it symmetric on each pass.
 output_folder = "generated/"  # The folder to output images into.
-num_images = 1  # The number of images to generate.
+num_images = 10  # The number of images to generate.
+width = 40
+height = 40
+
+
+class GenerationError(Exception):
+    pass
 
 
 class Singleton(type):
@@ -26,27 +32,34 @@ class Singleton(type):
 
 class Block:
     __metaclass__ = Singleton
-    image_loc = None
 
     def __init__(self):
         self.image = Image.open(self.image_loc)
+
+    def get_neighbor_coords(self):
+        return [(self.x + i, self.y + j) for i, j in
+                product([-1, 0, 1], [-1, 0, 1]) if
+                (0 <= self.x + i <= width) and (0 <= self.y + i <= height)]
+
+
+class Flag(Block):
+    pass
 
 
 class Floor(Block):
     image_loc = "floor.png"
 
 
-class RedFlag(Block):
+class RedFlag(Flag):
     image_loc = "red_flag.png"
 
 
-class BlueFlag(Block):
+class BlueFlag(Flag):
     image_loc = "blue_flag.png"
 
 
 class Wall(Block):
     image_loc = "wall.png"
-
 
 class Level:
     def __init__(self, width=40, height=40):
@@ -65,22 +78,30 @@ class Level:
             starmap((lambda a, b: self.grid[x + a][y + b]), product(xi, yi)), 1,
             None)
 
-    def run_pass(self):
-        for y in range(self.width):
-            for x in range(self.height):
-                node = self.grid[x][y]
-                neighbors = self.get_neighbors(y, x)
-                wall_count = 0
-                if isinstance(node, Wall):
-                    wall_count += 1
-                for neighbor in neighbors:
-                    if isinstance(neighbor, Wall):
-                        wall_count += 1
-                if wall_count >= 5 and random.random() > .025:
+    def get_neighbor_coords(self, x, y):
+        xi = (0, -1, 1) if 0 < x < len(self.grid) - 1 else (
+            (0, -1) if x > 0 else (0, 1))
+        yi = (0, -1, 1) if 0 < y < len(self.grid[0]) - 1 else (
+            (0, -1) if y > 0 else (0, 1))
+        return [(x+a, y+b) for a, b in product(xi, yi)]
 
-                    self.grid[x][y] = Wall()
-                else:
-                    self.grid[x][y] = Floor()
+    def get_neighbors(self, x, y):
+        return [self.grid[a][b] for a,b in self.get_neighbor_coords(x, y)]
+
+    def run_pass(self):
+        for x, y in product(range(self.width), range(self.height)):
+            node = self.grid[x][y]
+            neighbors = self.get_neighbors(x, y)
+            #print(len(neighbors))
+            wall_count = 0
+
+            for neighbor in neighbors:
+                if isinstance(neighbor, Wall):
+                    wall_count += 1
+            if wall_count >= 5 and random.random() > 0.025:
+                self.grid[x][y] = Wall()
+            else:
+                self.grid[x][y] = Floor()
         self.grid[0] = [Wall() for _ in range(self.width)]
         self.grid[-1] = [Wall() for _ in range(self.width)]
         for x in range(self.height):
@@ -152,6 +173,8 @@ class Level:
             if d not in o:
                 to_fill.add(d)
             o = o.union(to_fill.copy())
+        if float(len(o))/float(self.width*self.height) < .4:
+            raise GenerationError("Not enough open space.")
         return o
 
     def smooth(self):
@@ -179,28 +202,58 @@ class Level:
         else:
             return Floor()
 
+    def make_graph(self):
+        graph = Graph()
+        for x, y in product(range(self.width), range(self.height)):
+            if isinstance(self.grid[x][y],
+                          Floor) or isinstance(self.grid[x][y], Flag):
+                for i,j in self.get_neighbor_coords(x, y):
+                    if isinstance(self.grid[i][j],
+                          Floor) or isinstance(self.grid[i][j], Flag):
+                        graph.add_edge((x,y), (i,j), 1)
+        return graph
 
-def generate_level():
-    z = Level()
-    print "Creating map..."
+    def ensure_traversable(self):
+        graph = self.make_graph()
+        blue = None
+        red = None
+        for x, y in product(range(self.width), range(self.height)):
+            cell = self.grid[x][y]
+            if isinstance(cell, BlueFlag):
+                blue = (x,y)
+            elif isinstance(cell, RedFlag):
+                red = (x,y)
+            if blue is not None and red is not None:
+                break
+        path = find_path(graph, blue, red)
+        print path
+        return path
+
+def generate_level(x=40, y=40):
+    z = Level(x, y)
+    #print z.get_neighbor_coords(21,11)
+    #return
     for x in range(random.randrange(min_pass_count, max_pass_count)):
         if constant_symmetry:
             z.make_symmetric()
+
         z.run_pass()
 
-    print "Transforming map to be symmetric..."
-    z.make_symmetric()
-
-    print "Smoothing..."
+    #print "Smoothing..."
     z.smooth()
 
-    print "Placing flags..."
+    #print "Transforming map to be symmetric..."
+    z.make_symmetric()
+
+
+    #print "Placing flags..."
     z.find_longest_path()
 
-    print "Making image."
+    z.ensure_traversable()
+    #print "Making image."
     z.make_image()
 
-    print "Done!\n\n"
+    #print "Done!\n\n"
 
 
 if __name__ == "__main__":
@@ -208,8 +261,14 @@ if __name__ == "__main__":
     n = 1
     while n <= num_images:
         try:
+            print "Creating map..."
             generate_level()
             n += 1
-        except IndexError, e:
-            print "Failed to generate the level, likely a flag placement error."
-            print e
+            print "Level generated!\n\n"
+        except (IndexError), e:
+            print "Generation failure. Restarting."
+        except NoPathError, e:
+            #print e
+            print "No path between flags, restarting."
+        except GenerationError, e:
+            print "Not enough open space. Restarting."
