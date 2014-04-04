@@ -56,6 +56,7 @@ class Level:
         self.base_blocks = (Floor, Wall)
         self.grid = [[self.get_cell() for _ in range(width)]
                      for _ in range(height)]
+        self.uuid = uuid.uuid4()
 
     def get_neighbors(self, x, y):
         xi = (0, -1, 1) if 0 < x < len(self.grid) - 1 else (
@@ -99,7 +100,7 @@ class Level:
 
     def make_image(self):
         image = Image.new("RGBA", (self.width * 40, self.height * 40))
-        filename = "{}.png".format(uuid.uuid4())
+        filename = "{}.png".format(self.uuid)
         path = os.path.join(output_folder, filename)
         for x in range(self.width):
             for y in range(self.height):
@@ -114,7 +115,7 @@ class Level:
 
     def make_tagpro_image(self):
         image = Image.new("RGBA", (self.width, self.height))
-        filename = "{}.tagpro.png".format(uuid.uuid4())
+        filename = "{}.tagpro.png".format(self.uuid)
         path = os.path.join(output_folder, filename)
         pixels = []
         for x in range(self.width):
