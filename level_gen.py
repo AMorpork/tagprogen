@@ -8,10 +8,11 @@ import itertools
 # Configurable settings
 min_pass_count = 25  # Minimum and maximum number of passes to make.
 max_pass_count = 35  # The more passes, the smoother it will be.
-wall_chance = .5  # The chance of a wall appearing in the initial generation.
+wall_chance = .55  # The chance of a wall appearing in the initial generation.
 constant_symmetry = False  # Makes it symmetric on each pass.
 output_folder = "generated/"  # The folder to output images into.
 num_images = 1  # The number of images to generate.
+
 
 class Singleton(type):
     _instances = {}
@@ -178,6 +179,7 @@ class Level:
         else:
             return Floor()
 
+
 def generate_level():
     z = Level()
     print "Creating map..."
@@ -200,12 +202,14 @@ def generate_level():
 
     print "Done!\n\n"
 
+
 if __name__ == "__main__":
     print "Starting batch generation of {} images".format(num_images)
     n = 0
     while n <= num_images:
         try:
             generate_level()
+            n += 1
         except IndexError, e:
             print "Failed to generate the level, likely a flag placement error."
             print e
