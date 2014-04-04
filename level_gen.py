@@ -47,19 +47,19 @@ class Flag(Block):
 
 class Floor(Block):
     image_loc = "floor.png"
-
+    tagpro_color = (212, 212, 212)
 
 class RedFlag(Flag):
     image_loc = "red_flag.png"
-
+    tagpro_color = (255, 0, 0)
 
 class BlueFlag(Flag):
     image_loc = "blue_flag.png"
-
+    tagpro_color = (0, 0, 255)
 
 class Wall(Block):
     image_loc = "wall.png"
-
+    tagpro_color = (120, 120, 120)
 
 class Level:
     def __init__(self, width=40, height=40):
@@ -68,6 +68,7 @@ class Level:
         self.base_blocks = (Floor, Wall)
         self.grid = [[self.get_cell() for _ in range(width)]
                      for _ in range(height)]
+        self.uuid = uuid.uuid4()
 
     def get_neighbor_coords(self, x, y):
         xi = (0, -1, 1) if 0 < x < len(self.grid) - 1 else (
@@ -107,7 +108,7 @@ class Level:
 
     def make_image(self, flag_path=None):
         image = Image.new("RGBA", (self.width * 40, self.height * 40))
-        filename = "{}.png".format(uuid.uuid4())
+        filename = "{}.png".format(self.uuid)
         path = os.path.join(output_folder, filename)
         for x in range(self.width):
             for y in range(self.height):
@@ -115,6 +116,23 @@ class Level:
                 image.paste(cell.image, (x * 40, y * 40))
         if flag_path is not None and draw_computed_path:
             self.draw_flag_path(image, flag_path)
+        try:
+            image.save(path)
+        except KeyboardInterrupt:
+            if os.path.isfile(path):
+                os.remove(path)  # Perform cleanup to avoid a broken PNG.
+            raise
+
+    def make_tagpro_image(self):
+        image = Image.new("RGBA", (self.width, self.height))
+        filename = "{}.tagpro.png".format(self.uuid)
+        path = os.path.join(output_folder, filename)
+        pixels = []
+        for y in range(self.height):
+            for x in range(self.width):
+                cell = self.grid[x][y]
+                pixels.append(cell.tagpro_color)
+        image.putdata(pixels)
         try:
             image.save(path)
         except KeyboardInterrupt:
@@ -244,6 +262,7 @@ def generate_level(x=40, y=40):
     z.place_flags()
     flag_path = z.ensure_traversable()
     z.make_image(flag_path)
+    z.make_tagpro_image()
 
 
 if __name__ == "__main__":
