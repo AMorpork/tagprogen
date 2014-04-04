@@ -128,8 +128,8 @@ class Level:
         filename = "{}.tagpro.png".format(self.uuid)
         path = os.path.join(output_folder, filename)
         pixels = []
-        for y in range(self.width):
-            for x in range(self.height):
+        for y in range(self.height):
+            for x in range(self.width):
                 cell = self.grid[x][y]
                 pixels.append(cell.tagpro_color)
         image.putdata(pixels)
