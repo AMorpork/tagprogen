@@ -27,6 +27,7 @@ class Singleton(type):
 class Block:
     __metaclass__ = Singleton
     image_loc = None
+    tagpro_color = None
 
     def __init__(self):
         self.image = Image.open(self.image_loc)
@@ -34,19 +35,19 @@ class Block:
 
 class Floor(Block):
     image_loc = "floor.png"
-
+    tagpro_color = (212, 212, 212)
 
 class RedFlag(Block):
     image_loc = "red_flag.png"
-
+    tagpro_color = (255, 0, 0)
 
 class BlueFlag(Block):
     image_loc = "blue_flag.png"
-
+    tagpro_color = (0, 0, 255)
 
 class Wall(Block):
     image_loc = "wall.png"
-
+    tagpro_color = (120, 120, 120)
 
 class Level:
     def __init__(self, width=40, height=40):
@@ -104,6 +105,23 @@ class Level:
             for y in range(self.height):
                 cell = self.grid[x][y]
                 image.paste(cell.image, (y * 40, x * 40))
+        try:
+            image.save(path)
+        except KeyboardInterrupt:
+            if os.path.isfile(path):
+                os.remove(path)  # Perform cleanup to avoid a broken PNG.
+            raise
+
+    def make_tagpro_image(self):
+        image = Image.new("RGBA", (self.width, self.height))
+        filename = "{}.tagpro.png".format(uuid.uuid4())
+        path = os.path.join(output_folder, filename)
+        pixels = []
+        for x in range(self.width):
+            for y in range(self.height):
+                cell = self.grid[x][y]
+                pixels.append(cell.tagpro_color)
+        image.putdata(pixels)
         try:
             image.save(path)
         except KeyboardInterrupt:
@@ -197,8 +215,11 @@ def generate_level():
     print "Placing flags..."
     z.find_longest_path()
 
-    print "Making image."
+    print "Making image..."
     z.make_image()
+
+    print "Making TagPro image."
+    z.make_tagpro_image()
 
     print "Done!\n\n"
 
