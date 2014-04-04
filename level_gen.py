@@ -8,8 +8,8 @@ import itertools
 # Configurable settings
 min_pass_count = 25  # Minimum and maximum number of passes to make.
 max_pass_count = 35  # The more passes, the smoother it will be.
-wall_chance = .55  # The chance of a wall appearing in the initial generation.
-constant_symmetry = False  # Makes it symmetric on each pass.
+wall_chance = .525  # The chance of a wall appearing in the initial generation.
+constant_symmetry = True  # Makes it symmetric on each pass.
 output_folder = "generated/"  # The folder to output images into.
 num_images = 1  # The number of images to generate.
 
@@ -205,7 +205,7 @@ def generate_level():
 
 if __name__ == "__main__":
     print "Starting batch generation of {} images".format(num_images)
-    n = 0
+    n = 1
     while n <= num_images:
         try:
             generate_level()
